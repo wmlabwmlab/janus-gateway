@@ -78,7 +78,7 @@ from_janus = from-janus		; Name of the queue for outgoing messages
 [admin]
 admin_base_path = /admin		; Base path to bind to in the admin/monitor web server (plain HTTP only)
 admin_threads = unlimited		; unlimited=thread per connection, number=thread pool
-admin_http = no					; Whether to enable the plain HTTP interface
+admin_http = yes				; Whether to enable the plain HTTP interface
 admin_port = 7088				; Admin/monitor web server HTTP port
 admin_https = no				; Whether to enable HTTPS (default=no)
 ;admin_secure_port = 7889		; Admin/monitor web server HTTPS port, if enabled

@@ -87,7 +87,10 @@ janus_sdp *janus_sdp_preparse(const char *jsep_sdp, int *audio, int *video, int 
 	*rtcpmux = strstr(jsep_sdp, "a=rtcp-mux") ? 1 : 0;	/* FIXME Should we make this check per-medium? */
 	//~ *trickle = (strstr(jsep_sdp, "trickle") || strstr(jsep_sdp, "google-ice") || strstr(jsep_sdp, "Mozilla")) ? 1 : 0;	/* FIXME This is a really hacky way of checking... */
 	/* FIXME We're assuming trickle is always supported, see https://github.com/meetecho/janus-gateway/issues/83 */
-	*trickle = 1;
+	//*trickle = 1;
+	//Jerry
+	*trickle = strstr(jsep_sdp, "a=candidate") ? 0 : 1;	
+
 	janus_sdp *sdp = (janus_sdp *)calloc(1, sizeof(janus_sdp));
 	if(sdp == NULL) {
 		JANUS_LOG(LOG_FATAL, "Memory error!\n");

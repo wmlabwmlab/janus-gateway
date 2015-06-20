@@ -671,10 +671,10 @@ static void *janus_echotest_handler(void *data) {
 			goto error;
 		}
 		json_t *bitrate = json_object_get(root, "bitrate");
-		if(bitrate && !json_is_integer(bitrate)) {
-			JANUS_LOG(LOG_ERR, "Invalid element (bitrate should be an integer)\n");
+		if(bitrate && (!json_is_integer(bitrate) || json_integer_value(bitrate) < 0)) {
+			JANUS_LOG(LOG_ERR, "Invalid element (bitrate should be a positive integer)\n");
 			error_code = JANUS_ECHOTEST_ERROR_INVALID_ELEMENT;
-			g_snprintf(error_cause, 512, "Invalid value (bitrate should be an integer)");
+			g_snprintf(error_cause, 512, "Invalid value (bitrate should be a positive integer)");
 			goto error;
 		}
 		if(audio) {
@@ -709,6 +709,13 @@ static void *janus_echotest_handler(void *data) {
 		/* Any SDP to handle? */
 		if(msg->sdp) {
 			JANUS_LOG(LOG_VERB, "This is involving a negotiation (%s) as well:\n%s\n", msg->sdp_type, msg->sdp);
+		}
+
+		if(!audio && !video && !bitrate && !msg->sdp) {
+			JANUS_LOG(LOG_ERR, "No supported attributes (audio, video, bitrate, jsep) found\n");
+			error_code = JANUS_ECHOTEST_ERROR_INVALID_ELEMENT;
+			g_snprintf(error_cause, 512, "Message error: no supported attributes (audio, video, bitrate, jsep) found");
+			goto error;
 		}
 
 		json_decref(root);

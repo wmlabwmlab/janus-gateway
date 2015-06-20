@@ -940,8 +940,8 @@ int janus_process_incoming_request(janus_request_source *source, json_t *root) {
 		json_t *id = json_object_get(root, "id");
 		if(id != NULL) {
 			/* The application provided the session ID to use */
-			if(!json_is_integer(id)) {
-				ret = janus_process_error(source, session_id, transaction_text, JANUS_ERROR_INVALID_ELEMENT_TYPE, "Invalid element type (id should be an integer)");
+			if(!json_is_integer(id) || json_integer_value(id) < 0) {
+				ret = janus_process_error(source, session_id, transaction_text, JANUS_ERROR_INVALID_ELEMENT_TYPE, "Invalid element type (id should be a positive integer)");
 				goto jsondone;
 			}
 			session_id = json_integer_value(id);
@@ -1130,6 +1130,16 @@ int janus_process_incoming_request(janus_request_source *source, json_t *root) {
 				janus_mutex_unlock(&client->mutex);
 			}
 			janus_mutex_unlock(&old_wss_mutex);
+		}
+#endif
+#ifdef HAVE_RABBITMQ
+		if(source->type == JANUS_SOURCE_RABBITMQ) {
+			/* Remove the session from the list of sessions created by this RabbitMQ client */
+			janus_rabbitmq_client *client = (janus_rabbitmq_client *)source->source;
+			janus_mutex_lock(&client->mutex);
+			if(client->sessions)
+				g_hash_table_remove(client->sessions, GUINT_TO_POINTER(session_id));
+			janus_mutex_unlock(&client->mutex);
 		}
 #endif
 		/* Schedule the session for deletion */
@@ -1591,8 +1601,8 @@ int janus_process_incoming_request(janus_request_source *source, json_t *root) {
 					ret = janus_process_error(source, session_id, transaction_text, JANUS_ERROR_MISSING_MANDATORY_ELEMENT, "Trickle error: missing mandatory element (sdpMLineIndex)");
 					goto jsondone;
 				}
-				if(!json_is_integer(mline)) {
-					ret = janus_process_error(source, session_id, transaction_text, JANUS_ERROR_INVALID_ELEMENT_TYPE, "Trickle error: invalid element type (sdpMLineIndex should be an integer)");
+				if(!json_is_integer(mline) || json_integer_value(mline) < 0) {
+					ret = janus_process_error(source, session_id, transaction_text, JANUS_ERROR_INVALID_ELEMENT_TYPE, "Trickle error: invalid element type (sdpMLineIndex should be a positive integer)");
 					goto jsondone;
 				}
 				json_t *rc = json_object_get(candidate, "candidate");
@@ -1712,8 +1722,8 @@ int janus_process_incoming_request(janus_request_source *source, json_t *root) {
 						JANUS_LOG(LOG_WARN, "Trickle error: ignoring candidate at index %zu, missing mandatory element (sdpMLineIndex)\n", i);
 						continue;
 					}
-					if(!json_is_integer(mline)) {
-						JANUS_LOG(LOG_WARN, "Trickle error: ignoring candidate at index %zu, invalid element type (sdpMLineIndex should be an integer)\n", i);
+					if(!json_is_integer(mline) || json_integer_value(mline) < 0) {
+						JANUS_LOG(LOG_WARN, "Trickle error: ignoring candidate at index %zu, invalid element type (sdpMLineIndex should be a positive integer)\n", i);
 						continue;
 					}
 					json_t *rc = json_object_get(candidate, "candidate");
@@ -2122,8 +2132,8 @@ int janus_process_incoming_admin_request(janus_request_source *source, json_t *r
 				ret = janus_process_error(source, session_id, transaction_text, JANUS_ERROR_MISSING_MANDATORY_ELEMENT, "Missing mandatory element (level)");
 				goto jsondone;
 			}
-			if(!json_is_integer(level)) {
-				ret = janus_process_error(source, session_id, transaction_text, JANUS_ERROR_INVALID_ELEMENT_TYPE, "Invalid element type (level should be an integer)");
+			if(!json_is_integer(level) || json_integer_value(level) < 0) {
+				ret = janus_process_error(source, session_id, transaction_text, JANUS_ERROR_INVALID_ELEMENT_TYPE, "Invalid element type (level should be a positive integer)");
 				goto jsondone;
 			}
 			int level_num = json_integer_value(level);
@@ -2153,8 +2163,8 @@ int janus_process_incoming_admin_request(janus_request_source *source, json_t *r
 				ret = janus_process_error(source, session_id, transaction_text, JANUS_ERROR_MISSING_MANDATORY_ELEMENT, "Missing mandatory element (debug)");
 				goto jsondone;
 			}
-			if(!json_is_integer(debug)) {
-				ret = janus_process_error(source, session_id, transaction_text, JANUS_ERROR_INVALID_ELEMENT_TYPE, "Invalid element type (debug should be an integer)");
+			if(!json_is_integer(debug) || json_integer_value(debug) < 0) {
+				ret = janus_process_error(source, session_id, transaction_text, JANUS_ERROR_INVALID_ELEMENT_TYPE, "Invalid element type (debug should be a positive integer)");
 				goto jsondone;
 			}
 			int debug_num = json_integer_value(debug);
@@ -2181,8 +2191,8 @@ int janus_process_incoming_admin_request(janus_request_source *source, json_t *r
 				ret = janus_process_error(source, session_id, transaction_text, JANUS_ERROR_MISSING_MANDATORY_ELEMENT, "Missing mandatory element (debug)");
 				goto jsondone;
 			}
-			if(!json_is_integer(debug)) {
-				ret = janus_process_error(source, session_id, transaction_text, JANUS_ERROR_INVALID_ELEMENT_TYPE, "Invalid element type (debug should be an integer)");
+			if(!json_is_integer(debug) || json_integer_value(debug) < 0) {
+				ret = janus_process_error(source, session_id, transaction_text, JANUS_ERROR_INVALID_ELEMENT_TYPE, "Invalid element type (debug should be a positive integer)");
 				goto jsondone;
 			}
 			int debug_num = json_integer_value(debug);
@@ -2213,8 +2223,8 @@ int janus_process_incoming_admin_request(janus_request_source *source, json_t *r
 				ret = janus_process_error(source, session_id, transaction_text, JANUS_ERROR_MISSING_MANDATORY_ELEMENT, "Missing mandatory element (max_nack_queue)");
 				goto jsondone;
 			}
-			if(!json_is_integer(mnq)) {
-				ret = janus_process_error(source, session_id, transaction_text, JANUS_ERROR_INVALID_ELEMENT_TYPE, "Invalid element type (max_nack_queue should be an integer)");
+			if(!json_is_integer(mnq) || json_integer_value(mnq) < 0) {
+				ret = janus_process_error(source, session_id, transaction_text, JANUS_ERROR_INVALID_ELEMENT_TYPE, "Invalid element type (max_nack_queue should be a positive integer)");
 				goto jsondone;
 			}
 			int mnq_num = json_integer_value(mnq);
@@ -2390,6 +2400,8 @@ int janus_process_incoming_admin_request(janus_request_source *source, json_t *r
 		json_object_set_new(flags, "all-trickles", json_integer(janus_flags_is_set(&handle->webrtc_flags, JANUS_ICE_HANDLE_WEBRTC_ALL_TRICKLES)));
 		json_object_set_new(flags, "trickle-synced", json_integer(janus_flags_is_set(&handle->webrtc_flags, JANUS_ICE_HANDLE_WEBRTC_TRICKLE_SYNCED)));
 		json_object_set_new(flags, "data-channels", json_integer(janus_flags_is_set(&handle->webrtc_flags, JANUS_ICE_HANDLE_WEBRTC_DATA_CHANNELS)));
+		json_object_set_new(flags, "has-audio", json_integer(janus_flags_is_set(&handle->webrtc_flags, JANUS_ICE_HANDLE_WEBRTC_HAS_AUDIO)));
+		json_object_set_new(flags, "has-video", json_integer(janus_flags_is_set(&handle->webrtc_flags, JANUS_ICE_HANDLE_WEBRTC_HAS_VIDEO)));
 		json_object_set_new(flags, "plan-b", json_integer(janus_flags_is_set(&handle->webrtc_flags, JANUS_ICE_HANDLE_WEBRTC_PLAN_B)));
 		json_object_set_new(flags, "cleaning", json_integer(janus_flags_is_set(&handle->webrtc_flags, JANUS_ICE_HANDLE_WEBRTC_CLEANING)));
 		json_object_set_new(info, "flags", flags);
@@ -2884,6 +2896,12 @@ static int janus_wss_callback_http(struct libwebsocket_context *this,
 			libwebsockets_return_http_status(this, wsi, 403, NULL);
 			/* Close and free connection */
 			return 1;
+		case LWS_CALLBACK_FILTER_PROTOCOL_CONNECTION:
+			if (!in) {
+				JANUS_LOG(LOG_VERB, "Rejecting incoming HTTP request on WebSockets endpoint: no sub-protocol specified\n");
+				return 1;
+			}
+			break;
 		default:
 			break;
 	}
@@ -3090,7 +3108,7 @@ static int janus_wss_callback(struct libwebsocket_context *this,
 void janus_wss_task(gpointer data, gpointer user_data) {
 	JANUS_LOG(LOG_VERB, "Thread pool, serving request\n");
 	janus_websocket_request *request = (janus_websocket_request *)data;
-	janus_websocket_client *client = (janus_websocket_client *)data;
+	janus_websocket_client *client = (janus_websocket_client *)user_data;
 	if(request == NULL || client == NULL) {
 		JANUS_LOG(LOG_ERR, "Missing request or client\n");
 		return;
@@ -3278,7 +3296,8 @@ void *janus_rmq_out_thread(void *data) {
 					}
 				}
 				if(session->timeout) {
-					/* A session timed out, anything we should do? */
+					/* A session timed out, remove it from the list of sessions we manage */
+					g_hash_table_remove(rmq_client->sessions, GUINT_TO_POINTER(session->session_id));
 					continue;
 				}
 			}
@@ -3294,7 +3313,7 @@ void *janus_rmq_out_thread(void *data) {
 void janus_rmq_task(gpointer data, gpointer user_data) {
 	JANUS_LOG(LOG_VERB, "Thread pool, serving request\n");
 	janus_rabbitmq_request *request = (janus_rabbitmq_request *)data;
-	janus_rabbitmq_client *client = (janus_rabbitmq_client *)data;
+	janus_rabbitmq_client *client = (janus_rabbitmq_client *)user_data;
 	if(request == NULL || client == NULL) {
 		JANUS_LOG(LOG_ERR, "Missing request or client\n");
 		return;
@@ -4403,6 +4422,10 @@ gint main(int argc, char *argv[])
 	if(janus_dtls_srtp_init(server_pem, server_key) < 0) {
 		exit(1);
 	}
+	/* Check if there's any custom value for the starting MTU to use in the BIO filter */
+	item = janus_config_get_item_drilldown(config, "media", "dtls_mtu");
+	if(item && item->value)
+		janus_dtls_bio_filter_set_mtu(atoi(item->value));
 
 #ifdef HAVE_SCTP
 	/* Initialize SCTP for DataChannels */

@@ -1249,7 +1249,8 @@ struct janus_plugin_result *janus_videoroom_handle_message(janus_plugin_session 
 	} else if(!strcasecmp(request_text, "join") || !strcasecmp(request_text, "joinandconfigure")
 			|| !strcasecmp(request_text, "configure") || !strcasecmp(request_text, "publish") || !strcasecmp(request_text, "unpublish")
 			|| !strcasecmp(request_text, "start") || !strcasecmp(request_text, "pause") || !strcasecmp(request_text, "switch") || !strcasecmp(request_text, "stop")
-			|| !strcasecmp(request_text, "add") || !strcasecmp(request_text, "remove") || !strcasecmp(request_text, "leave") || !strcasecmp(request_text, "notifymessage")) {
+			|| !strcasecmp(request_text, "add") || !strcasecmp(request_text, "remove") || !strcasecmp(request_text, "leave")
+			|| !strcasecmp(request_text, "notifymessage") || !strcasecmp(request_text, "requestfripli")) {
 		/* These messages are handled asynchronously */
 
 		janus_videoroom_message *msg = calloc(1, sizeof(janus_videoroom_message));
@@ -2519,6 +2520,23 @@ static void *janus_videoroom_handler(void *data) {
 				json_object_set_new(event, "room", json_integer(listener->room->room_id));
 				json_object_set_new(event, "left", json_string("ok"));
 				session->started = FALSE;
+			} else if(!strcasecmp(request_text, "requestfripli")) {
+				if(listener && listener->feed) {
+					janus_videoroom_participant *publisher = listener->feed;
+					if(publisher && publisher->session) {
+						/* Send a FIR */
+						char buf[20];
+						memset(buf, 0, 20);
+						janus_rtcp_fir((char *)&buf, 20, &publisher->fir_seq);
+						JANUS_LOG(LOG_VERB, "Request publisher for FIR, sending FIR to %"SCNu64" (%s)\n", publisher->user_id, publisher->display ? publisher->display : "??");
+						gateway->relay_rtcp(publisher->session->handle, 1, buf, 20);
+						/* Send a PLI too, just in case... */
+						memset(buf, 0, 12);
+						janus_rtcp_pli((char *)&buf, 12);
+						JANUS_LOG(LOG_VERB, "Request publisher for PLI, sending PLI to %"SCNu64" (%s)\n", publisher->user_id, publisher->display ? publisher->display : "??");
+						gateway->relay_rtcp(publisher->session->handle, 1, buf, 12);
+					}
+				}
 			} else {
 				JANUS_LOG(LOG_ERR, "Unknown request '%s'\n", request_text);
 				error_code = JANUS_VIDEOROOM_ERROR_INVALID_REQUEST;

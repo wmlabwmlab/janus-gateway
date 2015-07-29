@@ -1550,7 +1550,7 @@ struct janus_plugin_result *janus_videoroom_handle_message(janus_plugin_session 
 			|| !strcasecmp(request_text, "configure") || !strcasecmp(request_text, "publish") || !strcasecmp(request_text, "unpublish")
 			|| !strcasecmp(request_text, "start") || !strcasecmp(request_text, "pause") || !strcasecmp(request_text, "switch") || !strcasecmp(request_text, "stop")
 			|| !strcasecmp(request_text, "add") || !strcasecmp(request_text, "remove") || !strcasecmp(request_text, "leave")
-			|| !strcasecmp(request_text, "notifymessage") || !strcasecmp(request_text, "requestfripli")) {
+			|| !strcasecmp(request_text, "notifymessage") || !strcasecmp(request_text, "broadcastmessage") || !strcasecmp(request_text, "requestfripli")) {
 		/* These messages are handled asynchronously */
 
 		janus_videoroom_message *msg = calloc(1, sizeof(janus_videoroom_message));
@@ -2705,6 +2705,33 @@ static void *janus_videoroom_handler(void *data) {
 					}
 				}
 				g_free(notifymessage_text);
+			} else if(!strcasecmp(request_text, "broadcastmessage")) {
+				json_t *message = json_object_get(root, "message");
+				
+				event = json_object();
+				json_object_set_new(event, "videoroom", json_string("event"));
+				json_object_set_new(event, "room", json_integer(participant->room->room_id));
+				json_object_set_new(event, "message", message);
+				char *broadcastmessage_text = json_dumps(event, JSON_INDENT(3) | JSON_PRESERVE_ORDER);
+				GHashTableIter iter;
+				gpointer value;
+				if(participant->room) {
+					if(!participant->room->destroyed) {
+						janus_mutex_lock(&participant->room->participants_mutex);
+						g_hash_table_iter_init(&iter, participant->room->participants);
+						while (!participant->room->destroyed && g_hash_table_iter_next(&iter, NULL, &value)) {
+							janus_videoroom_participant *p = value;
+							if(p == participant) {
+								continue;	/* Skip the new publisher itself */
+							}
+							JANUS_LOG(LOG_VERB, "Notifying participant %"SCNu64" (%s)\n", p->user_id, p->display ? p->display : "??");
+							int ret = gateway->push_event(p->session->handle, &janus_videoroom_plugin, NULL, broadcastmessage_text, NULL, NULL);
+							JANUS_LOG(LOG_VERB, "  >> %d (%s)\n", ret, janus_get_api_error(ret));
+						}
+						janus_mutex_unlock(&participant->room->participants_mutex);
+					}
+				}
+				g_free(broadcastmessage_text);
 			} else {
 				JANUS_LOG(LOG_ERR, "Unknown request '%s'\n", request_text);
 				error_code = JANUS_VIDEOROOM_ERROR_INVALID_REQUEST;

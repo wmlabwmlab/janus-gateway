@@ -2706,6 +2706,8 @@ static void *janus_videoroom_handler(void *data) {
 				}
 				g_free(notifymessage_text);
 			} else if(!strcasecmp(request_text, "broadcastmessage")) {
+				json_t *userId = json_object_get(root, "userId");
+				guint64 avoidUserId = json_integer_value(userId);
 				json_t *message = json_object_get(root, "message");
 
 				event = json_object();
@@ -2721,7 +2723,7 @@ static void *janus_videoroom_handler(void *data) {
 						g_hash_table_iter_init(&iter, participant->room->participants);
 						while (!participant->room->destroyed && g_hash_table_iter_next(&iter, NULL, &value)) {
 							janus_videoroom_participant *p = value;
-							if(p == participant) {
+							if((p == participant) || (p->user_id == avoidUserId)) {
 								continue;	/* Skip the new publisher itself */
 							}
 							JANUS_LOG(LOG_VERB, "Notifying participant %"SCNu64" (%s)\n", p->user_id, p->display ? p->display : "??");

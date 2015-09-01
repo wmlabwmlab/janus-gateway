@@ -2707,7 +2707,11 @@ static void *janus_videoroom_handler(void *data) {
 				g_free(notifymessage_text);
 			} else if(!strcasecmp(request_text, "broadcastmessage")) {
 				json_t *message = json_object_get(root, "message");
+<<<<<<< HEAD
 
+=======
+				
+>>>>>>> origin/master
 				event = json_object();
 				json_object_set_new(event, "videoroom", json_string("event"));
 				json_object_set_new(event, "room", json_integer(participant->room->room_id));
